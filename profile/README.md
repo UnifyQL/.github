@@ -57,137 +57,89 @@ unify.query('meta', 'delete', [{"rows":[4, 5, 6, 8, 9]}])
 
 ## PyUnify_Query
 ```
-class PyUnify_SQL:
-  def __init__(self, json_unify, data_list):    
+class PyUnify_Query:
+  def __init__(self, json_unify):
     self.json_unify = json_unify
-    self.data = json_unify['data']
-    self.data_list = data_list
-    self.filename = None
-    self.tableName = None
-    self.query = ""
     
-  def create(self, name):
-    retVal = ""
-    drop = "DROP TABLE IF EXISTS " + name + ";\n"
-    
-    self.query += drop + '\n'
-    create = "CREATE TABLE "+name+" ("
-    
-    self.query += create + '\n'
-    
-
-  def values(self, name):
-    
-    queries = ""
-    
-    # get data as rows / array
-    
-    # for each row, create query
-    for row_index, row in enumerate(self.data_list[1:]):
-      
-      query = "INSERT INTO "+name+"("+self.get_column_names()+") VALUES ("      
-      vals = ""
-      for index, item in enumerate(row):        
-        vals += "'"+str(item)+"'"
-        if index < len(row)-1:
-          vals += ', '
-      
-      query += vals + ');'
-      
-      self.query += query + '\n'
-    # add to queries
-    
-  def set_schema(self, schema):
-    keys = list(schema.keys())
-    
-    for key in keys:
-      
-      row = '\t'+key + ' ' + schema[key] +'\n'
-      self.query += row
-
-  def get(self, params):
-    
-    name = params['table']  
-    self.tableName = name
-    if 'file' in params:
-      self.filename = params['file']
-    
-    retVal = ""
-    self.create(name)
-    
-
-    if 'schema' in params:
-      self.set_schema(params['schema'])
-    else:
-      self.get_column_names_and_types()
-    end_parenthesis = ');\n'
-    
-    self.query += end_parenthesis + '\n'
-    self.values(name)
-    self.add_column_comments()
-    print(self.query)
-    if self.filename != None:
-      with open(self.filename, "w") as outfile:
-        outfile.write(self.query) 
-    #return retVal
-
-  def add_column_comments(self):
-    self.query += '\n'
-    headers = self.json_unify['concepts']['headers']
-    desc = headers['description']
-    for index, header in enumerate(headers['name']):    
-      
-      query = 'COMMENT ON COLUMN '+str(self.tableName)+'."'+header+'" IS \''+str(desc[index])+'\';\n'
-      self.query += query
-    
-    
+  def get_table(self, key):
+    if key == 'meta'or key == 'data':
+      table = self.json_unify[key]
+    elif key == 'headers' or key == 'values' or key == 'features':
+      table = self.json_unify['concepts'][key]
+    elif key == 'sla' or key == 'requirements':
+      table = self.json_unify['governance'][key]
+    return table
 
 
-  def get_column_names(self):
-    keys = list(self.data.keys())
-    rows = ""
-    for index, key in enumerate(keys):
-      if index < len(keys)-1:
-        line = '"'+key+'", '
-      else:
-        line = '"'+key+'"'+' '
-      rows += line
-    return rows
+  # key is the table, cmd is the the action to take like update, insert, select, params are the parameters of the query
+  #unify.query('meta', 'update', [{'row':9, 'col':'value', 'set':"Yahoo Finance Download"}, {'row':6, 'col':'value', 'set':'yahoo.com'}])
+  def query(self, key, cmd, params):        
+    table = self.get_table(key)
+    if cmd == 'update':
+      return self.query_update(table, params)
+    elif cmd == 'select':      
+      return self.query_select(table, params)
+    elif cmd == 'insert':      
+      return self.query_insert(table, params)
+    elif cmd == 'delete':      
+      return self.query_delete(table, params)
 
-  def get_types(self):
-    types = self.json_unify['concepts']['headers']['type']
+  # unify.query('meta', 'select', {'col':'key', 'target':'source'})
+  def query_select(self, table, params):            
+    col_name = params['col']    
+    column = table[col_name]
+    unify_row_index = None 
+    retVal = {}   
+    for index, item in enumerate(column):
+      if item == params['target']:
+        retVal['row'] = index
+        retVal['column'] = col_name        
+        retVal['cell'] = params['target']
     
-    retVal = []
-    for t in types:
-      if t == "string" or t == "text":
-        retVal.append('text')
-      elif t == None or t == 'None':
-        retVal.append('text')
-      elif t == "bool":
-        retVal.append('boolean')
-      elif t == "float":
-        retVal.append('double precision')
-      elif t == "int":
-        retVal.append('bigint')
-      elif t == "json":
-        retVal.append('jsonb')
     return retVal
-      
 
-  def get_column_names_and_types(self):
-    keys = list(self.data.keys())
-    types = self.get_types()
+  # unify.query('meta', 'delete', [{"rows":[4, 5, 6, 8, 9]}])
+  def query_delete(self, table, params):    
     
-    rows = ""
-    for index, key in enumerate(keys):
-      if index < len(keys)-1:
-        data_type = types[index]+','
-      else:
-        data_type = types[index]
-      key_name = '"'+key+'"'+' '
-      line = "\t"+key_name+' '+data_type+" "
-      rows += line
+    for param in params:
+      if 'rows' in param:
+        rows = param['rows']
+        for index, row in enumerate(rows):
+          
+          #for each header delete the list element
+          keys = list(table.keys())
+                    
+          for key in keys:
+            
+            
+            
+            del table[key][row-index]
+          new_index_length = len(table[keys[0]]) - index        
+          
+      if 'cols' in param:
+        cols = param['cols']
       
-      self.query += line + '\n'
-      
+    
+    
+    
+  #unify.query('meta', 'update', [{'row':9, 'col':'value', 'set':"Yahoo Finance Download"}, {'row':6, 'col':'value', 'set':'yahoo.com'}])
+  def query_update(self, table, params):            
+    
+    for param in params:
+      row = param['row']
+      col = param['col']
+      set_val = param['set']
+      table[col][row] = set_val
+
+  #unify.query('data', 'insert', [{'Animal':'Unicorn', 'Size':'Very Large', 'Gender':None, 'Safe As Pet':True, 'Weight In Pounds':1040.2}])
+  def query_insert(self, table, params):                
+    length = None
+    for param in params:
+      keys = list(param.keys())
+      for key in keys:
+        val = param[key]
+        col = table[key]
+        length = len(col)
+        col.append(val)
+      #print("Row number {} added".format(length))
 ```
