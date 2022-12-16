@@ -55,6 +55,99 @@ The following query will delete the following rows:
 unify.query('meta', 'delete', [{"rows":[4, 5, 6, 8, 9]}])
 ```
 
+## UnifyX.js Implementation
+```
+
+
+class UnifyQL {
+  constructor(json) {
+    this.json = json;
+  }
+
+  getTable(key) {
+    let table;
+    if (key === 'meta' || key === 'data') {
+      table = this.json[key];
+    } else if (key === 'headers' || key === 'values' || key === 'features') {
+      table = this.json['concepts'][key];
+    } else if (key === 'sla' || key === 'requirements') {
+      table = this.json['governance'][key];
+    }
+    return table;
+  }
+
+  query(key, cmd, params) {
+    const table = this.getTable(key);
+    if (cmd === 'update') {
+      return this.queryUpdate(table, params);
+    } else if (cmd === 'select') {
+      return this.querySelect(table, params);
+    } else if (cmd === 'insert') {
+      return this.queryInsert(table, params);
+    } else if (cmd === 'delete') {
+      return this.queryDelete(table, params);
+    }
+  }
+
+  querySelect(table, params) {
+    const colName = params['col'];
+    const column = table[colName];
+    let unifyRowIndex = null;
+    const retVal = {};
+    column.forEach((item, index) => {
+      if (item === params['target']) {
+        retVal['row'] = index;
+        retVal['column'] = colName;
+        retVal['cell'] = params['target'];
+      }
+    });
+    return retVal;
+  }
+
+  queryDelete(table, params) {
+    params.forEach((param) => {
+      if ('rows' in param) {
+        const rows = param['rows'];
+        rows.forEach((row, index) => {
+          const keys = Object.keys(table);
+          keys.forEach((key) => {
+            delete table[key][row - index];
+          });
+          const newIndexLength = table[keys[0]].length - index;
+        });
+      }
+      if ('cols' in param) {
+        const cols = param['cols'];
+      }
+    });
+  }
+
+  queryUpdate(table, params) {
+    params.forEach((param) => {
+      const row = param['row'];
+      const col = param['col'];
+      const setVal = param['set'];
+      table[col][row] = setVal;
+    });
+  }
+
+  queryInsert(table, params) {
+    let length = null;
+    params.forEach((param) => {
+      const keys = Object.keys(param);
+      keys.forEach((key) => {
+        const val = param[key];
+        const col = table[key];
+        length = col.length;
+        col.push(val);
+      });
+      console.log(`Row number ${length} added`);
+    });
+  }
+}
+
+```
+
 ## PyUnify_Query
 ```
 class PyUnify_Query:
