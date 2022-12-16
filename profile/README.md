@@ -1,6 +1,6 @@
 # Use UnifyQL to query JSON-Unify objects
 
-Works the same in PyUnify (Python) or UnifyJS (JavaScript)
+Works the same in PyUnify (Python) or UnifyX.js (JavaScript)
 
 ## UPDATE
 
